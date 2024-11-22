@@ -1,5 +1,6 @@
 import json
 import boto3
+from datetime import datetime
 
 def lambda_handler(event, context):
     client = boto3.client('cognito-idp')
@@ -21,7 +22,7 @@ def lambda_handler(event, context):
             result = create_user(client, user_pool_id, user_attributes)
             return {
                 "statusCode": 200,
-                "body": json.dumps({"message": "Usuário cliente cadastrado com sucesso.", "result": result})
+                "body": json.dumps({"message": "Usuário cliente cadastrado com sucesso.", "result": sanitize_response(result)})
             }
         # Verificar se é uma matrícula
         elif is_valid_matricula(user_id):
@@ -30,7 +31,7 @@ def lambda_handler(event, context):
             result = create_user(client, user_pool_id, user_attributes)
             return {
                 "statusCode": 200,
-                "body": json.dumps({"message": "Funcionário cadastrado com sucesso.", "result": result})
+                "body": json.dumps({"message": "Funcionário cadastrado com sucesso.", "result": sanitize_response(result)})
             }
         else:
             return {
@@ -74,3 +75,15 @@ def create_user(client, user_pool_id, user_attributes):
         MessageAction='SUPPRESS'  # Evita o envio de email automático
     )
     return response
+
+
+def sanitize_response(response):
+    """
+    Remove ou converte valores não serializáveis (como datetime) do response.
+    """
+    def default_serializer(obj):
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+
+    return json.loads(json.dumps(response, default=default_serializer))
